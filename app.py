@@ -1,6 +1,8 @@
 from flask import Flask, request, render_template, redirect, url_for, send_file
 import psycopg2
 from io import BytesIO
+import pytz
+from datetime import datetime
 
 app = Flask(__name__, 
             template_folder="templates",  
@@ -22,7 +24,8 @@ with get_db_connection() as conn:
             CREATE TABLE IF NOT EXISTS posts (
                 id SERIAL PRIMARY KEY,
                 content TEXT NOT NULL,
-                image BYTEA
+                image BYTEA,
+                created_at TIMESTAMPTZ DEFAULT NOW()  -- Добавляем время добавления
             );
         """)
         conn.commit()
@@ -49,10 +52,17 @@ def index():
     # Получение всех постов с изображениями, сортировка по убыванию ID
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT id, content, image FROM posts ORDER BY id DESC;")
+            cursor.execute("SELECT id, content, image, created_at FROM posts ORDER BY id DESC;")
             posts = cursor.fetchall()
 
-    return render_template("index.html", posts=posts)
+    # Преобразование времени в Екатеринбург
+    timezone = pytz.timezone("Asia/Yekaterinburg")
+    posts_with_time = []
+    for post in posts:
+        post_time = post[3].astimezone(timezone).strftime('%Y-%m-%d %H:%M:%S')  # Форматируем время
+        posts_with_time.append(post[:3] + (post_time,))
+
+    return render_template("index.html", posts=posts_with_time)
 
 @app.route("/image/<int:post_id>")
 def image(post_id):

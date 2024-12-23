@@ -9,7 +9,7 @@
     <style>
         /* Дополнительные стили для улучшения внешнего вида */
         body {
-            background-color: #f8f9fa;
+            background-color: #D0DEEC;
             font-family: 'Arial', sans-serif;
         }
         .container {
@@ -17,6 +17,8 @@
         }
         .post-card {
             margin-bottom: 20px;
+            border-radius: 15px;
+            padding: 15px;
         }
         .post-image {
             max-width: 100%; /* Адаптивный размер изображения */
@@ -27,7 +29,7 @@
         }
         .btn-submit {
             width: 100%;
-            background-color: #007bff;
+            background-color: #0056b3;
             color: white;
             border: none;
         }
@@ -46,7 +48,7 @@
 <body>
 
     <div class="container">
-        <h1 class="text-center">Posts</h1>
+        <h1 class="text-center">Оставить запись:</h1>
         
         <!-- Форма добавления поста -->
         <form method="POST" enctype="multipart/form-data">
@@ -59,7 +61,7 @@
             <button type="submit" class="btn btn-submit">Submit</button>
         </form>
 
-        <h2 class="mt-5">All Posts</h2>
+        <h2 class="mt-5 text-center">Все оставленные записи:</h2>
         <ul class="list-unstyled">
             {% for post in posts %}
                 <li class="post-card card shadow-sm">
@@ -68,6 +70,7 @@
                         {% if post[2] %}
                             <img src="{{ url_for('image', post_id=post[0]) }}" alt="Image" class="post-image mb-3">
                         {% endif %}
+                        <p class="text-muted">Дата добавления: {{ post[3] }}</p> <!-- Выводим время -->
                     </div>
                 </li>
             {% endfor %}
@@ -75,4 +78,6 @@
     </div>
 
     <!-- Подключение Bootstrap JS (необязательно, если используете интерактивные компоненты) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
