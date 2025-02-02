@@ -3,10 +3,16 @@ import psycopg2
 from io import BytesIO
 import pytz
 from datetime import datetime
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+import time
 
-app = Flask(__name__, 
-            template_folder="templates",  
-            static_folder="static")  
+app = Flask(__name__,
+            template_folder="templates",
+            static_folder="static")
+
+# Метрики Prometheus
+REQUEST_COUNT = Counter("flask_app_requests_total", "Total HTTP requests", ["method", "endpoint", "http_status"])
+REQUEST_LATENCY = Histogram("flask_app_request_latency_seconds", "Latency of HTTP requests", ["method", "endpoint", "http_status"])
 
 # Подключение к базе данных
 def get_db_connection():
@@ -25,10 +31,23 @@ with get_db_connection() as conn:
                 id SERIAL PRIMARY KEY,
                 content TEXT NOT NULL,
                 image BYTEA,
-                created_at TIMESTAMPTZ DEFAULT NOW()  -- Добавляем время добавления
+                created_at TIMESTAMPTZ DEFAULT NOW()
             );
         """)
         conn.commit()
+
+@app.before_request
+def before_request():
+    request.start_time = time.time()
+
+@app.after_request
+def after_request(response):
+    if not request.path.startswith("/image/") and not request.path.startswith("/metrics"):
+        request_latency = time.time() - request.start_time
+        REQUEST_COUNT.labels(request.method, request.path, response.status_code).inc()
+        REQUEST_LATENCY.labels(request.method, request.path, response.status_code).observe(request_latency)
+
+    return response
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -39,9 +58,8 @@ def index():
         if content:
             image_data = None
             if image:
-                image_data = image.read()  # Считывание изображения в байтовый формат
-            
-            # Сохранение контента и изображения в базе данных
+                image_data = image.read()
+
             with get_db_connection() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute("INSERT INTO posts (content, image) VALUES (%s, %s);", (content, image_data))
@@ -49,17 +67,15 @@ def index():
 
             return redirect(url_for("index"))
 
-    # Получение всех постов с изображениями, сортировка по убыванию ID
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, content, image, created_at FROM posts ORDER BY id DESC;")
             posts = cursor.fetchall()
 
-    # Преобразование времени в Екатеринбург
     timezone = pytz.timezone("Asia/Yekaterinburg")
     posts_with_time = []
     for post in posts:
-        post_time = post[3].astimezone(timezone).strftime('%Y-%m-%d %H:%M:%S')  # Форматируем время
+        post_time = post[3].astimezone(timezone).strftime('%Y-%m-%d %H:%M:%S')
         posts_with_time.append(post[:3] + (post_time,))
 
     return render_template("index.html", posts=posts_with_time)
@@ -72,10 +88,13 @@ def image(post_id):
             image_data = cursor.fetchone()
 
     if image_data:
-        # Возвращаем изображение как файл
         return send_file(BytesIO(image_data[0]), mimetype='image/jpeg')
 
     return "Image not found", 404
+
+@app.route("/metrics")
+def metrics():
+    return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
