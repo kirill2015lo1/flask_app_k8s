@@ -42,9 +42,12 @@ def before_request():
 
 @app.after_request
 def after_request(response):
-    if not request.path.startswith("/image/") and not request.path.startswith("/metrics"):
+    # Увеличиваем счётчик запросов для всех путей
+    REQUEST_COUNT.labels(request.method, request.path, response.status_code).inc()
+
+    # Метрики задержки только для '/' и '/metrics'
+    if request.path in ["/", "/metrics"]:
         request_latency = time.time() - request.start_time
-        REQUEST_COUNT.labels(request.method, request.path, response.status_code).inc()
         REQUEST_LATENCY.labels(request.method, request.path, response.status_code).observe(request_latency)
 
     return response
