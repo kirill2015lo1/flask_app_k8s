@@ -3,6 +3,7 @@ metallb: `https://github.com/kirill2015lo1/devops/blob/main/install_metallb.md`
 
 Чтобы запустить веб приложение, выполнить:
 ```
+kubectl apply -f before_flask.yaml
 kubectl apply -f flask.yaml
 ```
 При изменении Какого либа файла, чтобы вручную не удалять старые поды, и не париться с пушем в dockerhub есть скрипт с названием `x.sh`, 
